@@ -6,7 +6,7 @@ pipeline {
     }
 
     environment {
-        APLIKACJA = 'Kalkulator'
+        APLIKACJA = 'NarzedziaTextowe'
         WERSJA    = '1.0.0'
     }
 
@@ -39,7 +39,7 @@ pipeline {
             parallel {
                 stage('Sprawdzenie plikow') {
                     steps {
-                        sh 'test -f app.py && test -f test_app.py'
+                        sh 'test -f app.py && test -f test_app.py && test -f tools.py'
                         echo 'Wymagane pliki istnieja.'
                     }
                 }
@@ -57,7 +57,6 @@ pipeline {
             }
             steps {
                 echo "Wdrazam ${env.APLIKACJA} v${env.WERSJA} na DEV..."
-                echo 'Wdrozenie DEV zakonczone.'
             }
         }
         stage('Zatwierdzenie') {
@@ -78,7 +77,17 @@ pipeline {
             }
             steps {
                 echo "Wdrazam ${env.APLIKACJA} v${env.WERSJA} na PRODUKCJE!"
-                echo 'Wdrozenie PROD zakonczone.'
+            }
+        }
+        stage('Uruchom aplikacje') {
+            steps {
+                sh '''
+                    pkill -f "python3 app.py" || true
+                    nohup python3 app.py > app.log 2>&1 &
+                    sleep 3
+                    curl -sf http://localhost:5000/ > /dev/null
+                    echo "Aplikacja dziala na porcie 5000"
+                '''
             }
         }
     }
