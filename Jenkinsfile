@@ -27,6 +27,11 @@ pipeline {
                 echo "Srodowisko: ${params.SRODOWISKO}"
             }
         }
+        stage('Instalacja zaleznosci') {
+            steps {
+                sh 'pip3 install -r requirements.txt --quiet'
+            }
+        }
         stage('Testy') {
             when {
                 expression { env.GIT_BRANCH != 'origin/main' }
@@ -46,7 +51,7 @@ pipeline {
                 stage('Skanowanie zaleznosci') {
                     steps {
                         echo 'Skanowanie zaleznosci...'
-                        sh 'echo "Brak zewnetrznych zaleznosci — OK"'
+                        sh 'pip3 show flask | grep Version'
                     }
                 }
             }
