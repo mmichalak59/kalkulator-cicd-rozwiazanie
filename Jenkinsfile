@@ -8,6 +8,7 @@ pipeline {
     environment {
         APLIKACJA = 'NarzedziaTextowe'
         WERSJA    = '1.0.0'
+        IMAGE     = "narzedzia:${env.BUILD_NUMBER}"
     }
 
     parameters {
@@ -27,11 +28,6 @@ pipeline {
                 echo "Srodowisko: ${params.SRODOWISKO}"
             }
         }
-        stage('Instalacja zaleznosci') {
-            steps {
-                sh 'pip3 install -r requirements.txt --quiet'
-            }
-        }
         stage('Testy') {
             when {
                 expression { env.GIT_BRANCH != 'origin/main' }
@@ -40,18 +36,23 @@ pipeline {
                 sh 'python3 test_app.py'
             }
         }
+        stage('Build') {
+            steps {
+                sh "docker build -t ${env.IMAGE} ."
+            }
+        }
         stage('Analiza jakosci') {
             parallel {
                 stage('Sprawdzenie plikow') {
                     steps {
-                        sh 'test -f app.py && test -f test_app.py && test -f tools.py'
+                        sh 'test -f app.py && test -f test_app.py && test -f tools.py && test -f Dockerfile'
                         echo 'Wymagane pliki istnieja.'
                     }
                 }
-                stage('Skanowanie zaleznosci') {
+                stage('Skanowanie obrazu') {
                     steps {
-                        echo 'Skanowanie zaleznosci...'
-                        sh 'pip3 show flask | grep Version'
+                        echo 'Skanowanie obrazu Docker...'
+                        sh "docker inspect ${env.IMAGE} | grep -i size || true"
                     }
                 }
             }
@@ -84,12 +85,12 @@ pipeline {
                 echo "Wdrazam ${env.APLIKACJA} v${env.WERSJA} na PRODUKCJE!"
             }
         }
-        stage('Uruchom aplikacje') {
+        stage('Deploy') {
             steps {
-                sh 'pkill -f "python3 app.py" || true'
-                sh 'JENKINS_NODE_COOKIE=dontKillMe nohup python3 app.py > app.log 2>&1 &'
-                sh 'sleep 3 && curl -sf http://localhost:5000/'
-                echo 'Aplikacja dziala na porcie 5000'
+                sh 'docker stop app-demo || true'
+                sh 'docker rm app-demo || true'
+                sh "docker run -d --name app-demo -p 5000:5000 ${env.IMAGE}"
+                echo 'Kontener uruchomiony — port 5000'
             }
         }
     }
